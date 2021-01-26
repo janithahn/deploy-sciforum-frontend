@@ -1,0 +1,20 @@
+version: "3.2"
+
+services:
+
+  sciforum-frontend:
+    restart: always
+    command : npm start
+    container_name: front
+    build:
+      context: ./sciforum-frontend/
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    stdin_open: true
+    networks:
+      - db-net
+
+networks:
+  db-net:
+    driver: bridge
