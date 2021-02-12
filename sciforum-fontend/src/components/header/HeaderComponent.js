@@ -13,6 +13,9 @@ import { logout, fetchUser, fetchUserEmployment, fetchUserEducation, fetchUserSk
 import { useStyles } from './styles/headerStyle';
 import { fetchUnreadNotifications } from './actions';
 import community from './styles/community.svg';
+import MainDrawer from '../drawer/DrawerComponent';
+import ConfirmationEmailAfterSnack from '../settings/afterSnack';
+//import { resetEmailConfirm } from '../settings/actionCreators';
 
 function LoginModal({openModal, classes, handleModalClose}) {
     return(
@@ -130,6 +133,36 @@ const Header = (props) => {
         setAnchorEl(null);
         dispatch(logout());
     }
+    
+    //Drawer
+    const [open, setOpen] = React.useState(false);
+    const handleDrawerOpen = () => {
+        setOpen(!open);
+    };
+
+    const handleDrawerClose = () => {
+        setOpen(false);
+    };
+
+    //After snack settings
+    const emailConfirm = useSelector(state => state.ConfirmEmail);
+    const [openSnack, setOpenSnack] = React.useState(false);
+    const [snackAfterMessage, setSnackAfterMessage] = React.useState("");
+    const [snackSeverity, setSnackSeverity] = React.useState("");
+    const handleOpenSnack = () => {
+        setOpenSnack(true);
+    };
+    React.useEffect(() => {
+        if(emailConfirm.status === "succeeded") {
+            handleOpenSnack();
+            setSnackAfterMessage(emailConfirm.message);
+            setSnackSeverity("success");
+        }else if(emailConfirm.status === "failed") {
+            handleOpenSnack();
+            setSnackAfterMessage(emailConfirm.errMess.toString());
+            setSnackSeverity("error");
+        }
+    }, [emailConfirm])
 
     return (
         <div className={props.classes.root}>
@@ -140,7 +173,7 @@ const Header = (props) => {
                 })}
             >
                 <Toolbar>
-                    {location.pathname !== '/signup' && location.pathname !== '/signin' && <IconButton edge="start" className={clsx(props.classes.menuButton, props.open && props.classes.hide)} onClick={props.handleDrawerOpen} color="inherit" aria-label="menu">
+                    {location.pathname !== '/signup' && location.pathname !== '/signin' && <IconButton edge="start" className={clsx(props.classes.menuButton, props.open && props.classes.hide)} onClick={handleDrawerOpen} color="inherit" aria-label="menu">
                         <MenuIcon />
                     </IconButton>}
                     <img alt="sciforum_logo" src={community} style={{margin: 2}}/>
@@ -154,7 +187,7 @@ const Header = (props) => {
                             <Search />
                         </div>
                         <InputBase
-                            placeholder="Search…"
+                            placeholder="Search Questions…"
                             classes={{
                                 root: props.classes.inputRoot,
                                 input: props.classes.inputInput,
@@ -187,6 +220,13 @@ const Header = (props) => {
                 {props.showProgressBar ? <LinearProgress className={classes.progressBar}/>: undefined}
             </AppBar>
             <AlertSnackbar open={props.snackOpen} setOpen={props.setSnackOpen} message={props.snackMessage}/>
+            <ConfirmationEmailAfterSnack 
+                open={openSnack} 
+                setOpen={setOpenSnack} 
+                message={snackAfterMessage}
+                severity={snackSeverity}
+            />
+            {location.pathname !== '/signup' && location.pathname !== '/signin' && <MainDrawer open={open} classes={classes} handleDrawerClose={handleDrawerClose}/>}
         </div>
     );
 }

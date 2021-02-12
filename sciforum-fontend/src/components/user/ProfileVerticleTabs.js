@@ -9,7 +9,9 @@ import LinearProgress from '@material-ui/core/LinearProgress';
 import ProfilePanel from './panels/profilePanel';
 import Liked from './panels/liked';
 import MyAnswers from './panels/myAnswes';
+import MyPostsAccount from './panels/myPosts';
 import { useSelector } from 'react-redux';
+import { useHistory, useParams } from 'react-router-dom';
 
 function TabPanel(props) {
   const { children, value, index, ...other } = props;
@@ -37,10 +39,6 @@ TabPanel.propTypes = {
   value: PropTypes.any.isRequired,
 };
 
-/*function TabEnhanced({...props}) {
-    return <Tab style={{textTransform: 'none'}} {...props}/>
-}*/
-
 const TabEnhanced = withStyles((theme) => ({
   root: {
     textTransform: 'none',
@@ -60,7 +58,16 @@ const TabEnhanced = withStyles((theme) => ({
     },
   },
   selected: {},
-}))((props) => <Tab disableRipple {...props} />);
+}))((props) => (
+  <Tab 
+    component="a"
+    onClick={(event) => {
+      event.preventDefault();
+    }}
+    disableRipple 
+    {...props} 
+  />
+));
 
 function a11yProps(index) {
   return {
@@ -97,12 +104,31 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-export default function ProfileTabs({ credentialsLoadingState }) {
+export default function ProfileTabs({ credentialsLoadingState, usernameFromTheUrl }) {
   const classes = useStyles();
-  const [value, setValue] = React.useState(0);
+
+  const { tabname } = useParams();
+  const history = useHistory();
+
+  const tabNameToIndex = {
+    0: "index",
+    1: "posts",
+    2: "answers",
+    3: "liked",
+  };
+
+  const indexToTabName = {
+    index: 0,
+    posts: 1,
+    answers: 2,
+    liked: 3,
+  };
+
+  const [value, setValue] = React.useState(indexToTabName[tabname]);
   const auth = useSelector(state => state.Auth);
 
   const handleChange = (event, newValue) => {
+    history.push(`/profile/${usernameFromTheUrl}/${tabNameToIndex[newValue]}`);
     setValue(newValue);
   };
 
@@ -119,9 +145,9 @@ export default function ProfileTabs({ credentialsLoadingState }) {
           aria-label="scrollable auto tabs"
         >
           <TabEnhanced label="Profile" {...a11yProps(0)} />
-          {auth.isAuthenticated ? <TabEnhanced label="Recent" {...a11yProps(1)} />: undefined}
-          {auth.isAuthenticated ? <TabEnhanced label="Answers" {...a11yProps(2)} />: undefined}
-          {auth.isAuthenticated ? <TabEnhanced label="Liked" {...a11yProps(3)} />: undefined}
+          {auth.isAuthenticated ? <TabEnhanced href="/drafts" label="Posts" {...a11yProps(1)} />: undefined}
+          {auth.isAuthenticated && auth.currentUser === usernameFromTheUrl ? <TabEnhanced label="Answers" {...a11yProps(2)} />: undefined}
+          {auth.isAuthenticated && auth.currentUser === usernameFromTheUrl ? <TabEnhanced label="Liked" {...a11yProps(3)} />: undefined}
         </Tabs>
         {credentialsLoadingState ? 
           <LinearProgress color="secondary" style={{height: 1}} /*className={classes.progressBar}*//>: 
@@ -132,14 +158,16 @@ export default function ProfileTabs({ credentialsLoadingState }) {
       </TabPanel>
       {auth.isAuthenticated ? <div>
         <TabPanel value={value} index={1}>
-          Item Two
+          <MyPostsAccount usernameFromTheUrl={usernameFromTheUrl}/>
         </TabPanel>
-        <TabPanel value={value} index={2}>
-          <MyAnswers/>
-        </TabPanel>
-        <TabPanel value={value} index={3}>
-          <Liked/>
-        </TabPanel>
+        {auth.currentUser === usernameFromTheUrl ? <div>
+          <TabPanel value={value} index={2}>
+            <MyAnswers/>
+          </TabPanel>
+          <TabPanel value={value} index={3}>
+            <Liked/>
+          </TabPanel>
+        </div>: undefined}
       </div>: undefined}
     </div>
   );

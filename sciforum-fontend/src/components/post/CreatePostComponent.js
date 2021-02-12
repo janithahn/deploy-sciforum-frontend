@@ -8,6 +8,7 @@ import { theme, useStyles } from './styles/postsStyles';
 import MDEditor from './MDE';
 import Tags from './tags';
 import TopPosts from './TopPosts';
+import QuestionLabels from './labels';
 import { useSelector, useDispatch } from 'react-redux';
 import { postPost } from '../../redux/ActionCreators';
 import { useFormik } from 'formik';
@@ -18,9 +19,6 @@ export default function CreatePost({setSnackMessage, setSnackOpen}) {
 
   const [title, setTitle] = React.useState('');
   const [body, setQuestion] = React.useState('');
-
-  //const [tagList, setTagList] = React.useState([]);
-  const [tagValue, setTagValue] = React.useState([]);
   
   const [answerSubmitError, setAnswerSubmitError] = React.useState('');
 
@@ -29,27 +27,36 @@ export default function CreatePost({setSnackMessage, setSnackOpen}) {
 
   const dispatch = useDispatch();
 
-  const profileSchema = Yup.object().shape({
+  const schema = Yup.object().shape({
     title: Yup.string()
       .min(2, 'Too Short!')
       .required('Required'),
+    tags: Yup.array()
+      .min(2, 'Please at least put 2 tags related to your question')
+      .max(5, 'Not more than 5 tags')
+      .required('Please at least put 2 tags related to your question'),
+    label: Yup.array()
+      .min(1, 'It is required to label your question')
+      .required('It is required to label your question'),
   });
 
   const formik = useFormik({
     initialValues: {
       title: title,
+      tags: [],
+      label: [],
     },
     onSubmit: (values) => {
+      setAnswerSubmitError('');
       if(body.length === 0) {
         setAnswerSubmitError("Question cannot be blank!");
       }else {
         setAnswerSubmitError("");
-        dispatch(postPost({owner: auth.currentUserId, title: values.title, body, tags: tagValue}, setSnackMessage, setSnackOpen));
+        dispatch(postPost({owner: auth.currentUserId, title: values.title, body, tags: values.tags, label: values.label[0].name}, setSnackMessage, setSnackOpen));
         history.push('/myposts');
-        //history.goBack();
       }
     },
-    validationSchema: profileSchema,
+    validationSchema: schema,
   });
 
   function handleCancel() {
@@ -99,12 +106,20 @@ export default function CreatePost({setSnackMessage, setSnackOpen}) {
                     <FormHelperText error={true}>{answerSubmitError}</FormHelperText>
                   </Grid>
                   <Grid item>
+                    <QuestionLabels
+                      value={formik.values.label}
+                      setValue={formik.setFieldValue} 
+                      error={formik.errors.label && formik.touched.label}
+                      helperText={(formik.errors.label && formik.touched.label) && formik.errors.label}
+                    />
+                  </Grid>
+                  <Grid item>
                     <Tags 
                       classes={classes} 
-                      value={tagValue} 
-                      setValue={setTagValue} 
-                      //tagList={tagList} 
-                      //setTagList={setTagList}
+                      value={formik.values.tags}
+                      error={formik.errors.tags && formik.touched.tags}
+                      helperText={(formik.errors.tags && formik.touched.tags) && formik.errors.tags}
+                      setFieldValue={formik.setFieldValue}
                     />
                   </Grid>
                   <Grid item>

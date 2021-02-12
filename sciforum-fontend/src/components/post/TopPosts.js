@@ -50,7 +50,7 @@ export default function TopPosts() {
   const topPostsList = topPosts.posts.map((post) => {
         const id = post.id;
         const title = post.title;
-        const vote_count = post.vote_count;
+        const vote_count = post.likes;
         const truncate = (input) => input.length > 250 ? `${input.substring(0, 250)}...` : input;
 
         return(
@@ -62,7 +62,7 @@ export default function TopPosts() {
                                 <Typography variant="subtitle2" color="textPrimary" component="p">{truncate(title)}</Typography>
                             </Grid>
                             <Grid item xs={12}>
-                                <Typography variant="body2" color="textSecondary" component="p">{`${vote_count} Likes`}</Typography>
+                                <Typography variant="body2" color="textSecondary" component="p">{vote_count === 1 ? `${vote_count} Like`: `${vote_count} Likes`}</Typography>
                             </Grid>
                         </Grid>
                     </Paper>

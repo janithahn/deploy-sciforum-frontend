@@ -27,6 +27,10 @@ export const useStyles = makeStyles((theme) => ({
     drawerContainer: {
         overflow: 'auto'
     },
+    drawerLabelsContainer: {
+        overflow: 'auto',
+        marginLeft: 1
+    },
     drawerHeader: {
         display: 'flex',
         alignItems: 'center',
@@ -34,5 +38,16 @@ export const useStyles = makeStyles((theme) => ({
         // necessary for content to be below app bar
         ...theme.mixins.toolbar,
         justifyContent: 'flex-end',
+    },
+    labelColor: {
+      width: 14,
+      height: 14,
+      flexShrink: 0,
+      borderRadius: 3,
+      marginRight: 8,
+      marginTop: 2,
+    },
+    labelText: {
+      flexGrow: 1,
     },
 }));

@@ -10,15 +10,23 @@ const headerWithToken = {
 };
 
 //POSTS
-export const fetchPosts = () => async (dispatch) => {
+export const fetchPosts = (pageNum, setNextHref, setHasMoreItems, nextHref) => async (dispatch) => {
     dispatch(postsLoading());
 
-    axios.get(baseUrl + '/api/')
-    .then(response => {
-        //console.log(response);
-        return response;
+    var url = baseUrl + `/api/?page=${pageNum}`;
+    if(nextHref) {
+        url = nextHref;
+    }
+    axios.get(url)
+    .then(posts => {
+        posts.data.results.map(post => dispatch(addPosts(post)));
+        //dispatch(addPosts(posts.data.results.map(post => post)));
+        if(posts.data.next) {
+            setNextHref(posts.data.next);
+        } else {
+            setHasMoreItems(false);
+        }
     })
-    .then(posts => dispatch(addPosts(posts.data)))
     .catch(error => {
         console.log(error);
         dispatch(postsFailed(error));
@@ -70,6 +78,7 @@ export const editPost = (post, setSnackMessage, setSnackOpen) => (dispatch, getS
         title: post.title,
         body: post.body,
         tags: post.tags,
+        label: post.label,
     },{
         "headers": localStorage.getItem('token') ? {Authorization: "JWT " + localStorage.getItem('token')}: undefined
     })
@@ -184,6 +193,16 @@ export const fetchMyPosts = (ownerId, page) => async (dispatch) => {
     });
 }
 
+export const fetchMyPostsByUsername = (username, page) => (dispatch) => {
+    dispatch(myPostsLoading());
+
+    axios.get(baseUrl + `/api/?ordering=-created_at&owner__username=${username}&page=${page}`)
+    .then(myposts => dispatch(addMyPosts(myposts.data)))
+    .catch(error => {
+        dispatch(myPostsFailed(error));
+    });
+}
+
 export const myPostsLoading = () => ({
     type: ActionTypes.MYPOSTS_LOADING
 });
@@ -224,7 +243,7 @@ export const requestLogin = (creds) => {
     });
 }
 
-export const loginSuccess = (token, firebase_token, currentUser, currentUserId, currentUserEmail, currentUserProfileImg) => {
+export const loginSuccess = (token, firebase_token, currentUser, currentUserId, currentUserEmail, currentUserEmailVerified, currentUserProfileImg) => {
     return({
         type: ActionTypes.LOGIN_SUCCESS,
         token,
@@ -232,6 +251,7 @@ export const loginSuccess = (token, firebase_token, currentUser, currentUserId, 
         currentUser,
         currentUserId,
         currentUserEmail,
+        currentUserEmailVerified,
         currentUserProfileImg,
     });
 }
@@ -259,6 +279,7 @@ export const loginUser = (creds, history, from) => async (dispatch) => {
         const currentUser = res.data.user.username;
         const currentUserId = res.data.user.id;
         const currentUserEmail = res.data.user.email;
+        const currentUserEmailVerified = res.data.user.email_verified;
         const currentUserProfileImg = res.data.user.profile.profileImg;
 
         localStorage.setItem('token', token);
@@ -266,9 +287,10 @@ export const loginUser = (creds, history, from) => async (dispatch) => {
         localStorage.setItem('currentUser', currentUser);
         localStorage.setItem('currentUserId', currentUserId);
         localStorage.setItem('currentUserEmail', currentUserEmail);
+        localStorage.setItem('currentUserEmailVerified', currentUserEmailVerified);
         localStorage.setItem('currentUserProfileImg', currentUserProfileImg);
         localStorage.setItem('currentUserRoomKeys', "[]");
-        dispatch(loginSuccess(token, firebase_token, currentUser, currentUserId, currentUserEmail, currentUserProfileImg));
+        dispatch(loginSuccess(token, firebase_token, currentUser, currentUserId, currentUserEmail, currentUserEmailVerified, currentUserProfileImg));
         history.replace(from); //redirecting back to where it was
         //dispatch(fetchUser(token, currentUser));
     })
@@ -369,6 +391,7 @@ const roomsReset = () => ({
 export const logout = () => (dispatch) => {
     dispatch(requestLogout());
 
+    //logging out from chat rooms
     const currentUserRoomKeys = JSON.parse(localStorage.getItem('currentUserRoomKeys'));
     if(currentUserRoomKeys) {
         let len = currentUserRoomKeys.length;
@@ -453,14 +476,16 @@ export const signupUser = (creds) => async (dispatch) => {
         const currentUser = res.data.user.username;
         const currentUserId = res.data.user.id;
         const currentUserEmail = res.data.user.email;
+        const currentUserEmailVerified = res.data.user.email_verified;
 
         localStorage.setItem('token', token);
         localStorage.setItem('firebase_token', firebase_token);
         localStorage.setItem('currentUser', currentUser);
         localStorage.setItem('currentUserId', currentUserId);
         localStorage.setItem('currentUserEmail', currentUserEmail);
+        localStorage.setItem('currentUserEmailVerified', currentUserEmailVerified);
         localStorage.setItem('currentUserRoomKeys', "[]");
-        dispatch(loginSuccess(token, firebase_token, currentUser, currentUserId, currentUserEmail));
+        dispatch(loginSuccess(token, firebase_token, currentUser, currentUserId, currentUserEmail, currentUserEmailVerified));
         window.location.reload();
         //dispatch(fetchUser(token, currentUser));
         //dispatch(checkAuthTimeout(3600));
@@ -594,11 +619,28 @@ export const updateUserAboutMe = (auth, aboutMe) => (dispatch) => {
     })
 }
 
+//updating profile image
+export const profileImageUpateLoading = () => ({
+    type: ActionTypes.UPDATE_PROFILE_IMAGE_LOADING
+});
+
+export const profileImageUpateFailed = (errmess) => ({
+    type: ActionTypes.UPDATE_PROFILE_IMAGE_FAILED,
+    payload: errmess
+});
+
+export const profileImageUpateSuccess = (data) => ({
+    type: ActionTypes.UPDATE_PROFILE_IMAGE_FAILED,
+    payload: data
+});
+
 export const updateUserProfileImage = (auth, profileImage, usernameFromTheUrl) => (dispatch) => {
     const headers = {
         'Content-Type': 'multipart/form-data',
         'Authorization': localStorage.getItem('token') !== null ? "JWT " + localStorage.getItem('token'): undefined
     }
+
+    dispatch(profileImageUpateLoading());
 
     axios.patch(baseUrl + `/profile_api/${auth.currentUserId}/`, profileImage,
     {
@@ -606,10 +648,12 @@ export const updateUserProfileImage = (auth, profileImage, usernameFromTheUrl) =
     })
     .then(res => {
         console.log(res);
+        localStorage.setItem("currentUserProfileImg", res.data.profileImg);
+        dispatch(profileImageUpateSuccess(res.data));
         dispatch(fetchUser(null, usernameFromTheUrl));
     })
     .catch(error => {
-        console.log(error);
+        dispatch(profileImageUpateFailed(error));
     })
 }
 
@@ -1045,7 +1089,11 @@ export const addPostComments = (postComments) => ({
     payload: postComments
 });
 
-export const updatePostComments = (comment, commetId, postId) => (dispatch) => {
+export const postcommentChange = () => ({
+    type: ActionTypes.POST_COMMENT_CHANGE,
+});
+
+export const updatePostComments = (comment, commetId) => (dispatch) => {
     
     axios.patch(baseUrl + `/comment_api/post_comment_create/${commetId}/`, comment,
     {
@@ -1053,14 +1101,14 @@ export const updatePostComments = (comment, commetId, postId) => (dispatch) => {
     })
     .then(res => {
         console.log(res);
-        dispatch(fetchPostComments(postId));
+        dispatch(postcommentChange());
     })
     .catch(error => {
         console.log(error);
     })
 }
 
-export const createPostComments = (comment, postId) => (dispatch) => {
+export const createPostComments = (comment) => (dispatch) => {
     
     axios.post(baseUrl + `/comment_api/post_comment_create/`, comment,
     {
@@ -1068,14 +1116,14 @@ export const createPostComments = (comment, postId) => (dispatch) => {
     })
     .then(res => {
         console.log(res);
-        dispatch(fetchPostComments(postId));
+        dispatch(postcommentChange());
     })
     .catch(error => {
         console.log(error);
     })
 }
 
-export const deletePostComments = (commentId, postId) => (dispatch) => {
+export const deletePostComments = (commentId) => (dispatch) => {
     
     axios.delete(baseUrl + `/comment_api/post_comment_create/${commentId}/`,
     {
@@ -1083,7 +1131,7 @@ export const deletePostComments = (commentId, postId) => (dispatch) => {
     })
     .then(res => {
         console.log(res);
-        dispatch(fetchPostComments(postId));
+        dispatch(postcommentChange());
     })
     .catch(error => {
         console.log(error);
@@ -1137,7 +1185,11 @@ export const addAnswerComments = (answerComments) => ({
     payload: answerComments,
 });
 
-export const updateAnswerComments = (comment, commetId, id) => (dispatch) => {
+export const answercommentChange = () => ({
+    type: ActionTypes.ANSWER_COMMENT_CHANGE,
+});
+
+export const updateAnswerComments = (comment, commetId) => (dispatch) => {
     
     axios.patch(baseUrl + `/comment_api/answer_comment_create/${commetId}/`, comment,
     {
@@ -1145,14 +1197,14 @@ export const updateAnswerComments = (comment, commetId, id) => (dispatch) => {
     })
     .then(res => {
         console.log(res);
-        dispatch(fetchAnswerComments(id));
+        dispatch(answercommentChange());
     })
     .catch(error => {
         console.log(error);
     })
 }
 
-export const createAnswerComments = (comment, id) => (dispatch) => {
+export const createAnswerComments = (comment) => (dispatch) => {
     
     axios.post(baseUrl + `/comment_api/answer_comment_create/`, comment,
     {
@@ -1160,14 +1212,14 @@ export const createAnswerComments = (comment, id) => (dispatch) => {
     })
     .then(res => {
         console.log(res);
-        dispatch(fetchAnswerComments(id));
+        dispatch(answercommentChange());
     })
     .catch(error => {
         console.log(error);
     })
 }
 
-export const deleteAnswerComments = (commentId, id) => (dispatch) => {
+export const deleteAnswerComments = (commentId) => (dispatch) => {
     
     axios.delete(baseUrl + `/comment_api/answer_comment_create/${commentId}/`,
     {
@@ -1175,7 +1227,7 @@ export const deleteAnswerComments = (commentId, id) => (dispatch) => {
     })
     .then(res => {
         console.log(res);
-        dispatch(fetchAnswerComments(id));
+        dispatch(answercommentChange());
     })
     .catch(error => {
         console.log(error);
@@ -1230,10 +1282,25 @@ export const updateUserProfile = (auth, aboutMe) => (dispatch) => {
 }
 
 //ANSWER
-export const fetchAnswers = (postId) => (dispatch) => {
+export const fetchAnswers = (postId, ordering, answerId) => (dispatch) => {
     dispatch(answersLoading());
 
-    axios.get(baseUrl + `/answer_api/?postBelong=${postId}`, {
+    axios.get(baseUrl + `/answer_api/?ordering=${ordering}&postBelong=${postId}&answer=${answerId}`, {
+        "headers": localStorage.getItem('token') ? {Authorization: "JWT " + localStorage.getItem('token')}: undefined
+    })
+    .then(answers => {
+        dispatch(addAnswers(answers.data));
+    })
+    .catch(error => {
+        console.log(error);
+        dispatch(answersFailed(error));
+    });
+}
+
+export const fetchAnswersForPagination = (postId, ordering, pageNum) => (dispatch) => {
+    dispatch(answersLoading());
+
+    axios.get(baseUrl + `/answer_api/?ordering=${ordering}&postBelong=${postId}&page=${pageNum}`, {
         "headers": localStorage.getItem('token') ? {Authorization: "JWT " + localStorage.getItem('token')}: undefined
     })
     .then(answers => 
@@ -1263,6 +1330,20 @@ export const addAnswers = (answers) => ({
     payload: answers
 });
 
+export const answerCreated = (data) => ({
+    type: ActionTypes.ANSWER_CREATED,
+    payload: data
+});
+
+export const answerDeleted = () => ({
+    type: ActionTypes.ANSWER_DELETED,
+});
+
+export const answerUpdated = (data) => ({
+    type: ActionTypes.ANSWER_UPDATED,
+    payload: data
+});
+
 export const postAnswer = (postBelong, owner, answerContent) => (dispatch) => {
     axios.post(baseUrl + `/answer_api/answer/create/`, {
         postBelong: postBelong,
@@ -1270,12 +1351,12 @@ export const postAnswer = (postBelong, owner, answerContent) => (dispatch) => {
         answerContent: answerContent,
     }, headerWithToken)
     .then(response => {
-        console.log(response);
-        dispatch(fetchAnswers(postBelong));
+        dispatch(answerCreated(JSON.parse(response.data)[0].pk));
+        //dispatch(fetchAnswers(postBelong));
     })
     .catch(error => {
         console.log(error);
-        //dispatch(answersFailed(error));
+        dispatch(answersFailed(error));
     });
 }
 
@@ -1285,23 +1366,22 @@ export const updateAnswer = (id, postBelong, answerContent) => (dispatch) => {
     }, headerWithToken)
     .then(response => {
         console.log(response);
-        dispatch(fetchAnswers(postBelong));
+        dispatch(answerUpdated(JSON.parse(response.data)[0].pk));
+        //dispatch(fetchAnswers(postBelong));
     })
     .catch(error => {
-        console.log(error);
-        //dispatch(answersFailed(error));
+        dispatch(answersFailed(error));
     });
 }
 
 export const deleteAnswer = (id, postBelong) => (dispatch) => {
     axios.delete(baseUrl + `/answer_api/answer/${id}/delete/`, headerWithToken)
     .then(response => {
-        console.log(response);
-        dispatch(fetchAnswers(postBelong));
+        dispatch(answerDeleted());
+        //dispatch(fetchAnswers(postBelong));
     })
     .catch(error => {
-        console.log(error);
-        //dispatch(answersFailed(error));
+        dispatch(answersFailed(error));
     });
 }
 

@@ -16,28 +16,28 @@ import { EditorState } from 'draft-js';
 
 function AnswerModal({openModal, answerContent, setAnswerContent, handleModalClose, classes, postId, ...rest}) {
     return(
-        <Modal {...rest}
-            open={openModal} 
-            className={classes.modal}
-            onClose={handleModalClose}
-            aria-labelledby="transition-modal-title"
-            aria-describedby="transition-modal-description"
-            closeAfterTransition
-            BackdropComponent={Backdrop}
-            BackdropProps={{
-                timeout: 500,
-            }}
-        >  
-            <Fade in={openModal}>
-                <AnswerModalCard 
-                    answerContent={answerContent} 
-                    setAnswerContent={setAnswerContent} 
-                    postId={postId} 
-                    handleModalClose={handleModalClose}
-                    answerType={"create"}
-                />
-            </Fade>
-        </Modal>
+            <Modal {...rest}
+                open={openModal} 
+                className={classes.modal}
+                onClose={handleModalClose}
+                aria-labelledby="transition-modal-title"
+                aria-describedby="transition-modal-description"
+                closeAfterTransition
+                BackdropComponent={Backdrop}
+                BackdropProps={{
+                    timeout: 500,
+                }}
+            >  
+                <Fade in={openModal}>
+                    <AnswerModalCard 
+                        answerContent={answerContent} 
+                        setAnswerContent={setAnswerContent} 
+                        postId={postId} 
+                        handleModalClose={handleModalClose}
+                        answerType={"create"}
+                    />
+                </Fade>
+            </Modal>
     );
 }
 
@@ -69,6 +69,7 @@ export default function PostDetail() {
         body: post.post.body,
     };
     const id = post.post.id;
+    const label = post.post.label;
     const owner = post.post.owner;
     const viewCount = post.post.viewCount;
     const created_at = post.post.created_at;
@@ -110,7 +111,7 @@ export default function PostDetail() {
 
     const handleCommentSubmit = React.useCallback(({ submitVal, setEditorState, setSubmitVal, text }) => {
         if(text.length !== 0) {
-            dispatch(createPostComments(submitVal, postId));
+            dispatch(createPostComments(submitVal));
         }
         setEditorState(() => EditorState.createEmpty());
         setSubmitVal({});
@@ -133,6 +134,7 @@ export default function PostDetail() {
                     <RenderCard 
                         title={postInfo.title} 
                         body={postInfo.body} 
+                        label={label}
                         viewCount={viewCount}
                         created_at={created_at}
                         updated_at={updated_at}

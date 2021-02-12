@@ -1,18 +1,21 @@
 import React from 'react';
+import { useParams } from 'react-router-dom';
 import QuestionViewCard from '../post/QuestionViewCardComponent';
 import axios from 'axios';
 import { baseUrl } from '../../shared/baseUrl'
 import RenderPosts from './RenderPosts';
 
-export default function Home() {
-    
+export default function SearchByLabel() {
+
+    const { label } = useParams();
+
     const [postData, setPostData] = React.useState([]);
     const [hasMoreItems, setHasMoreItems] = React.useState(true);
     const [nextHref, setNextHref] = React.useState(null);
 
     const fetchPostInfinite = (pageNum) => {
 
-        var url = baseUrl + `/api/hot/posts/?page=${pageNum}`;
+        var url = baseUrl + `/api/?page=${pageNum}&label=${label}`;
         if(nextHref) {
             url = nextHref;
         }
@@ -39,13 +42,13 @@ export default function Home() {
         });
     }
 
-    let PostsList = postData.map((post) => <div key={post.id}><QuestionViewCard item={post}/></div>);
+    const PostsList = postData.map((post) => <div key={post.id}><QuestionViewCard item={post}/></div>);
 
     return(
         <RenderPosts 
             PostsList={PostsList} 
             fetchPostInfinite={fetchPostInfinite} 
-            hasMoreItems={hasMoreItems}
+            hasMoreItems={hasMoreItems} 
         />
     );
 }
